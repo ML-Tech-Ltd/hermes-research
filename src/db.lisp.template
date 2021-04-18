@@ -1,0 +1,23 @@
+(in-package :cl-user)
+(defpackage hermes-research.db
+  (:use :cl :postmodern)
+  (:import-from :hermes-research.config
+                :config)
+  (:import-from :datafly
+                :*connection*)
+  (:import-from :cl-dbi
+                :connect-cached)
+  (:export :connection-settings
+           :db
+           :with-connection))
+(in-package :hermes-research.db)
+
+;; For postgres.
+(defparameter *db-name* "")
+(defparameter *db-user* "")
+(defparameter *db-pass* "")
+(defparameter *db-hostname* "")
+
+(defmacro conn (&rest body)
+  `(with-connection (list ,*db-name* ,*db-user* ,*db-pass* ,*db-hostname*)
+     ,@body))
