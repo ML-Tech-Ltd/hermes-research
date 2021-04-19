@@ -19,16 +19,16 @@
 	       "datafly"
 	       "postmodern"
 	       
-	       ;;
+	       ;; Hermes ecosystem.
 	       "hermes-common"
+	       "hermes-input"
 	       )
   :components ((:module "src"
                 :components
-                ((:file "main" :depends-on ("config" "view" "db"))
-                 (:file "web" :depends-on ("view"))
-                 (:file "view" :depends-on ("config"))
-                 (:file "db" :depends-on ("config"))
-                 (:file "config"))))
+                ((:file "main")
+                 (:file "db")
+		 (:file "utils")
+                 )))
   :description ""
   :in-order-to ((test-op (test-op "hermes-research-test"))))
 
