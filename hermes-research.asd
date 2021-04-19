@@ -17,7 +17,11 @@
 
                ;; for DB
 	       "datafly"
-	       "postmodern")
+	       "postmodern"
+	       
+	       ;;
+	       "hermes-common"
+	       )
   :components ((:module "src"
                 :components
                 ((:file "main" :depends-on ("config" "view" "db"))
@@ -27,3 +31,15 @@
                  (:file "config"))))
   :description ""
   :in-order-to ((test-op (test-op "hermes-research-test"))))
+
+(defsystem "hermes-research-test"
+  :defsystem-depends-on ("prove-asdf")
+  :author "Amaury Hernandez-Aguila"
+  :license ""
+  :depends-on ("hermes-research"
+               "rove")
+  :components ((:module "tests"
+                :components
+                ((:test-file "main"))))
+  :description "Test system for hermes-research"
+  :perform (test-op (op c) (symbol-call :prove-asdf :run-test-system c)))

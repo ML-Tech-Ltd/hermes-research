@@ -1,4 +1,4 @@
-# hermes-research
+# Hermes Research
 
 
 
