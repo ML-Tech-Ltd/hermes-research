@@ -6,13 +6,15 @@
 		 #:postmodern
 		 #:uuid
 		 
+		 #:local-time
+		 
 		 ;; Hermes ecosystem.
 		 #:hermes-common
 		 #:hermes-input
 		 )
     :components ((:module "src"
 			  :components
-			  ((:file "main")
+			  ((:file "main" :depends-on ("db"))
 			   (:file "db")
 			   (:file "utils")
 			   )))
