@@ -203,7 +203,7 @@
 								       (:= 'next "")))
 			     idx
 			     (id paragraph)
-			     (:dao paragraph)))))
+			     (:dao sentence)))))
 	(paragraph (first (conn (query (:select '* :from 'sentences :where (:and (:= 'idx 0)
 										 (:= 'paragraph-id '$1)
 										 (:= 'next "")))
@@ -251,15 +251,47 @@
 	(setf (text caption) caption-text)
 	(conn (update-dao caption))))
     (when idx
-      (setf (idx sentence) idx))
+      (let* ((paragraph (get-paragraph nil :id (paragraph-id sentence)))
+	     (sentences (get-sentences paragraph :idx (idx sentence))))
+	(conn
+	 (loop for sentence in sentences
+	       do (progn
+		    (setf (idx sentence) idx)
+		    (update-dao sentence))))))
     (when archivedp
-      (setf (archived sentence) archived))
-    (when (or idx archivedp)
+      (setf (archived sentence) archived)
       (conn (update-dao sentence)))))
 ;; (text (get-caption (caption-id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))))
 ;; (text (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))
 ;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes that change everything.")
-;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :idx 0)
+;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 10) :idx 0)
+
+(defun create-comment (target-id author text)
+  (conn (make-dao 'comment
+		  :target-id target-id
+		  :author author
+		  :text text)))
+;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Amaury" "Nice first sentence.")
+;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Mario" "Definitely!")
+;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 1)) "Amaury" "Nice second sentence.")
+
+(defun get-comment (id)
+  (when id
+    (conn (get-dao 'comment id))))
+
+(defun get-comments (target-id)
+  (when target-id
+    (conn (query (:order-by (:select '* :from 'comments :where (:= 'target-id '$1))
+			    (:asc 'timestamp))
+		 target-id
+		 (:dao comment)))))
+;; (loop for comment in (get-comments (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))) do (print (text comment)))
+
+(defun update-comment (comment &key (archived nil archivedp))
+  (when (and comment archivedp)
+    (setf (archived comment) archived)
+    (conn (update-dao comment))))
+;; (update-comment (first (get-comments (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))))) :archived t)
 
 (hscom.utils:comment
  (progn
@@ -278,10 +310,14 @@
    (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "Second sentence." :text "Meow meow meow.")
    (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 1) :caption-text "First sentence." :text "Woof woof.")
 
-   (sleep 1)
+   ;; (sleep 1)
    (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some changes." :text "Something more meaningful.")
-   (sleep 1)
+   ;; (sleep 1)
    (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes." :text "Something even more meaningful.")
+
+   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Amaury" "Nice first sentence.")
+   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Mario" "Definitely!")
+   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 1)) "Amaury" "Nice second sentence.")
    )
  )
 
