@@ -15,7 +15,8 @@
      (query (:create-table 'papers
 		((id :type string)
 		 (timestamp :type int8)
-		 (title :type string))
+		 (title :type string)
+		 (archived :type boolean))
 	      (:primary-key id)))
      (query (:create-table 'paragraphs
 		((id :type string)
@@ -23,7 +24,8 @@
 		 (timestamp :type int8)
 		 (title :type string)
 		 (description :type string)
-		 (idx :type int))
+		 (idx :type int)
+		 (archived :type boolean))
 	      (:primary-key id)))
      (query (:create-table 'sentences
 		((id :type string)
@@ -33,7 +35,8 @@
 		 (paragraph-id :type string)
 		 (caption-id :type string)
 		 (idx :type int)
-		 (text :type string))
+		 (text :type string)
+		 (archived :type boolean))
 		(:primary-key id)))
      (query (:create-table 'captions
 		((id :type string)
@@ -44,7 +47,8 @@
 		 (target-id :type string)
 		 (timestamp :type int8)
 		 (author :type string)
-		 (text :type string))
+		 (text :type string)
+		 (archived :type boolean))
 	      (:primary-key id)))
      )))
 ;; (init-database)

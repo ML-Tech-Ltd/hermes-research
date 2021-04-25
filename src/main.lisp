@@ -13,7 +13,8 @@
 (defclass paper ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
    (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
-   (title :col-type string :initarg :title :accessor title))
+   (title :col-type string :initarg :title :accessor title)
+   (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
   (:metaclass dao-class)
   (:table-name papers)
   (:keys id))
@@ -24,7 +25,8 @@
    (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (title :col-type string :initarg :title :accessor title)
    (description :col-type string :initarg :description :accessor description)
-   (idx :col-type integer :initarg :idx :accessor idx))
+   (idx :col-type integer :initarg :idx :accessor idx)
+   (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
   (:metaclass dao-class)
   (:table-name paragraphs)
   (:keys id))
@@ -37,7 +39,8 @@
    (paragraph-id :col-type string :initarg :paragraph-id :accessor paragraph-id)
    (caption-id :col-type string :initarg :caption-id :accessor caption-id)
    (idx :col-type integer :initarg :idx :accessor idx)
-   (text :col-type string :initarg :text :accessor text))
+   (text :col-type string :initarg :text :accessor text)
+   (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
   (:metaclass dao-class)
   (:table-name sentences)
   (:keys id))
@@ -54,7 +57,8 @@
    (target-id :col-type string :initarg :target-id :accessor target-id)
    (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (author :col-type string :initarg :author :accessor author)
-   (text :col-type string :initarg :text :accessor text))
+   (text :col-type string :initarg :text :accessor text)
+   (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
   (:metaclass dao-class)
   (:table-name comments)
   (:keys id))
@@ -75,11 +79,15 @@
 ;; (get-paper :title *paper*)
 ;; (get-paper :title *paper2*)
 
-(defun update-paper (paper title)
+(defun update-paper (paper &key title (archived nil archivedp))
   "Update paper identified by `id` with new `title`."
-  (when title
-    (setf (title paper) title)
-    (conn (update-dao paper))))
+  (when paper
+    (when title
+      (setf (title paper) title))
+    (when archivedp
+      (setf (archived paper) archived))
+    (when (or title archivedp)
+      (conn (update-dao paper)))))
 ;; (update-paper (get-paper :title *paper*) "Meow")
 ;; (update-paper (get-paper :title "Meow") *paper*)
 
@@ -115,15 +123,18 @@
 ;; (get-paragraph nil :id (id (get-paragraph (get-paper :title *paper*))))
 ;; (get-paragraph (get-paper :title *paper*) :idx 0)
 
-(defun update-paragraph (paragraph &key idx title description)
-  (when idx
-    (setf (idx paragraph) idx))
-  (when title
-    (setf (title paragraph) title))
-  (when description
-    (setf (description paragraph) description))
-  (when (or idx title description)
-    (conn (update-dao paragraph))))
+(defun update-paragraph (paragraph &key idx title description (archived nil archivedp))
+  (when paragraph
+    (when idx
+      (setf (idx paragraph) idx))
+    (when title
+      (setf (title paragraph) title))
+    (when description
+      (setf (description paragraph) description))
+    (when archivedp
+      (setf (archived paragraph) archived))
+    (when (or idx title description archivedp)
+      (conn (update-dao paragraph)))))
 ;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)
 ;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 1) :title "This is another title.")
 ;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 1) :description "Description.")
@@ -233,14 +244,17 @@
 ;; (text (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0))))
 ;; (text (get-sentence-next (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))))
 
-(defun update-sentence (sentence &key caption-text idx)
+(defun update-sentence (sentence &key caption-text idx (archived nil archivedp))
   (when sentence
     (when caption-text
       (let ((caption (get-caption (caption-id sentence))))
 	(setf (text caption) caption-text)
 	(conn (update-dao caption))))
     (when idx
-      (setf (idx sentence) idx)
+      (setf (idx sentence) idx))
+    (when archivedp
+      (setf (archived sentence) archived))
+    (when (or idx archivedp)
       (conn (update-dao sentence)))))
 ;; (text (get-caption (caption-id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))))
 ;; (text (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))
