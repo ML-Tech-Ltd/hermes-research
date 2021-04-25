@@ -14,17 +14,20 @@
    (unless (table-exists-p 'papers)
      (query (:create-table 'papers
 		((id :type string)
+		 (timestamp :type int8)
 		 (title :type string))
 	      (:primary-key id)))
      (query (:create-table 'paragraphs
 		((id :type string)
 		 (paper-id :type string)
+		 (timestamp :type int8)
 		 (title :type string)
 		 (description :type string)
 		 (idx :type int))
 	      (:primary-key id)))
      (query (:create-table 'sentences
 		((id :type string)
+		 (timestamp :type int8)
 		 (previous :type string)
 		 (next :type string)
 		 (paragraph-id :type string)
