@@ -2,6 +2,9 @@
 (in-package :cl-user)
 (defpackage hermes-research
   (:use #:cl #:postmodern)
+  (:import-from #:local-time
+		#:now
+		#:timestamp-to-unix)
   (:import-from #:hsinp.db
 		#:conn)
   (:nicknames #:hsres))
@@ -9,6 +12,7 @@
 
 (defclass paper ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
+   (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (title :col-type string :initarg :title :accessor title))
   (:metaclass dao-class)
   (:table-name papers)
@@ -17,6 +21,7 @@
 (defclass paragraph ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
    (paper-id :col-type string :initarg :paper-id :accessor paper-id)
+   (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (title :col-type string :initarg :title :accessor title)
    (description :col-type string :initarg :description :accessor description)
    (idx :col-type integer :initarg :idx :accessor idx))
@@ -26,6 +31,7 @@
 
 (defclass sentence ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
+   (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (previous :col-type string :initform "" :initarg :previous :accessor previous)
    (next :col-type string :initform "" :initarg :next :accessor next)
    (paragraph-id :col-type string :initarg :paragraph-id :accessor paragraph-id)
@@ -46,7 +52,7 @@
 (defclass comment ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
    (target-id :col-type string :initarg :target-id :accessor target-id)
-   (timestamp :col-type int8 :initarg :timestamp :accessor timestamp)
+   (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (author :col-type string :initarg :author :accessor author)
    (text :col-type string :initarg :text :accessor text))
   (:metaclass dao-class)
@@ -72,7 +78,7 @@
 (defun update-paper (paper title)
   "Update paper identified by `id` with new `title`."
   (when title
-    (setf (paper-title paper) title)
+    (setf (title paper) title)
     (conn (update-dao paper))))
 ;; (update-paper (get-paper :title *paper*) "Meow")
 ;; (update-paper (get-paper :title "Meow") *paper*)
@@ -194,6 +200,39 @@
 				       (:dao sentence)))))))
 ;; (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))
 
+(defun get-sentences (paragraph &key idx)
+  (cond ((and paragraph idx)
+	 (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paragraph-id '$1)
+									   (:= 'idx idx)))
+				 (:asc 'timestamp))
+		      (id paragraph)
+		      (:dao sentence))))
+	(paragraph (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paragraph-id '$1)
+										     (:= 'next "")))
+					   (:asc 'idx))
+				(id paragraph)
+				(:dao sentence))))))
+;; (loop for sentence in (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0)) do (print (text sentence)))
+;; (loop for sentence in (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0) do (print (text sentence)))
+
+(defun -get-sentence-previous-next (sentence operation)
+  (let ((sentence-id (cond ((eq operation :next) (next sentence))
+			   ((eq operation :previous) (previous sentence)))))
+    (when (not (string= sentence-id ""))
+      (get-sentence nil :id sentence-id))))
+
+(defun get-sentence-previous (sentence)
+  (-get-sentence-previous-next sentence :previous))
+;; (text (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))
+;; (text (get-sentence-previous (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0))))
+;; (text (get-sentence-previous (get-sentence-previous (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))))
+
+(defun get-sentence-next (sentence)
+  (-get-sentence-previous-next sentence :next))
+;; (text (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))
+;; (text (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0))))
+;; (text (get-sentence-next (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))))
+
 (defun update-sentence (sentence &key caption-text idx)
   (when sentence
     (when caption-text
@@ -205,6 +244,8 @@
       (conn (update-dao sentence)))))
 ;; (text (get-caption (caption-id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))))
 ;; (text (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))
+;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes that change everything.")
+;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :idx 0)
 
 (hscom.utils:comment
  (progn
@@ -223,10 +264,11 @@
    (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "Second sentence." :text "Meow meow meow.")
    (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 1) :caption-text "First sentence." :text "Woof woof.")
 
+   (sleep 1)
    (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some changes." :text "Something more meaningful.")
+   (sleep 1)
    (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes." :text "Something even more meaningful.")
    )
  )
-
 
 ;; (progn (hsres.db:drop-database) (hsres.db:init-database))
