@@ -19,18 +19,21 @@
      (query (:create-table 'paragraphs
 		((id :type string)
 		 (paper-id :type string)
-		 (idx :type int)
 		 (title :type string)
-		 (description :type string))
+		 (description :type string)
+		 (idx :type int))
 	      (:primary-key id)))
      (query (:create-table 'sentences
 		((id :type string)
 		 (previous :type string)
 		 (next :type string)
 		 (paragraph-id :type string)
+		 (caption-id :type string)
 		 (idx :type int)
-		 (title :type string)
-		 (description :type string)
+		 (text :type string))
+		(:primary-key id)))
+     (query (:create-table 'captions
+		((id :type string)
 		 (text :type string))
 	      (:primary-key id)))
      (query (:create-table 'comments
@@ -48,5 +51,6 @@
    (drop-table 'papers)
    (drop-table 'paragraphs)
    (drop-table 'sentences)
+   (drop-table 'captions)
    (drop-table 'comments)))
 ;; (drop-database)
