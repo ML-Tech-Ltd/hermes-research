@@ -7,6 +7,27 @@
 		#:timestamp-to-unix)
   (:import-from #:hsinp.db
 		#:conn)
+  (:export #:create-paper
+	   #:get-paper
+	   #:get-papers
+	   #:update-paper
+	   #:create-paragraph
+	   #:get-paragraph
+	   #:update-paragraph
+	   #:create-caption
+	   #:get-caption
+	   #:update-caption
+	   #:create-sentence-new
+	   #:create-sentence-next
+	   #:get-sentence
+	   #:get-sentences
+	   #:get-sentence-previous
+	   #:get-sentence-next
+	   #:update-sentence
+	   #:create-comment
+	   #:get-comment
+	   #:get-comments
+	   #:update-comment)
   (:nicknames #:hsres))
 (in-package :hermes-research)
 
@@ -79,6 +100,11 @@
 ;; (get-paper :title *paper*)
 ;; (get-paper :title *paper2*)
 
+(defun get-papers ()
+  (conn (query (:select '* :from 'papers)
+	       (:dao paper))))
+;; (get-papers)
+
 (defun update-paper (paper &key title (archived nil archivedp))
   "Update paper identified by `id` with new `title`."
   (when paper
@@ -126,6 +152,8 @@
 (defun update-paragraph (paragraph &key idx title description (archived nil archivedp))
   (when paragraph
     (when idx
+      (let ((sentences (get-sentences paragraph)))
+	)
       (setf (idx paragraph) idx))
     (when title
       (setf (title paragraph) title))
@@ -153,11 +181,10 @@
   (when id
     (conn (get-dao 'caption id))))
 
-(defun update-caption (id caption-text)
-  (when (and id caption-text)
-    (let ((caption (get-caption id)))
-      (setf (text caption) caption-text)
-      (conn (update-dao caption)))))
+(defun update-caption (caption &key (caption-text ""))
+  (when caption
+    (setf (text caption) caption-text)
+    (conn (update-dao caption))))
 
 (defun delete-caption (caption)
   (conn (delete-dao caption)))
