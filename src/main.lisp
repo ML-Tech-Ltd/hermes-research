@@ -11,12 +11,9 @@
 	   #:get-paper
 	   #:get-papers
 	   #:update-paper
-	   #:create-paragraph
-	   #:get-paragraph
-	   #:update-paragraph
-	   #:create-caption
-	   #:get-caption
-	   #:update-caption
+	   #:create-description
+	   #:get-description
+	   #:update-description
 	   #:create-sentence-new
 	   #:create-sentence-next
 	   #:get-sentence
@@ -40,25 +37,13 @@
   (:table-name papers)
   (:keys id))
 
-(defclass paragraph ()
-  ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
-   (paper-id :col-type string :initarg :paper-id :accessor paper-id)
-   (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
-   (title :col-type string :initarg :title :accessor title)
-   (description :col-type string :initarg :description :accessor description)
-   (idx :col-type integer :initarg :idx :accessor idx)
-   (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
-  (:metaclass dao-class)
-  (:table-name paragraphs)
-  (:keys id))
-
 (defclass sentence ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
    (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (previous :col-type string :initform "" :initarg :previous :accessor previous)
    (next :col-type string :initform "" :initarg :next :accessor next)
-   (paragraph-id :col-type string :initarg :paragraph-id :accessor paragraph-id)
-   (caption-id :col-type string :initarg :caption-id :accessor caption-id)
+   (paper-id :col-type string :initarg :paper-id :accessor paper-id)
+   (description-id :col-type string :initarg :description-id :accessor description-id)
    (idx :col-type integer :initarg :idx :accessor idx)
    (text :col-type string :initarg :text :accessor text)
    (archived :col-type boolean :initform nil :initarg :archived :accessor archived))
@@ -66,16 +51,16 @@
   (:table-name sentences)
   (:keys id))
 
-(defclass caption ()
+(defclass description ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
    (text :col-type string :initarg :text :accessor text))
   (:metaclass dao-class)
-  (:table-name captions)
+  (:table-name descriptions)
   (:keys id))
 
 (defclass comment ()
   ((id :col-type string :initform (format nil "~a" (uuid:make-v4-uuid)) :initarg :id :accessor id)
-   (target-id :col-type string :initarg :target-id :accessor target-id)
+   (sentence-id :col-type string :initarg :sentence-id :accessor sentence-id)
    (timestamp :col-type int8 :initform (timestamp-to-unix (now)) :initarg :timestamp :accessor timestamp)
    (author :col-type string :initarg :author :accessor author)
    (text :col-type string :initarg :text :accessor text)
@@ -86,6 +71,7 @@
 
 ;; (defparameter *paper* "Fuzzy Grade of Membership as a Coordination Mechanism in Agent-Based Models")
 ;; (defparameter *paper2* "Using Technical Indictors as Perception Mechanisms in Agent-Based Models")
+;; (defparameter *paper3* "Using Fuzzy Systems for the Identification of Trading Patterns in Financial Markets")
 
 (defun create-paper (title)
   (conn (make-dao 'paper :title title)))
@@ -122,136 +108,84 @@
     (conn (delete-dao paper))))
 ;; (delete-paper (get-paper :title *paper*))
 
-(defun create-paragraph (paper &key (title "") (description ""))
+(defun create-description (description-text)
+  (when description-text
+    (conn (make-dao 'description
+		    :text description-text))))
+
+(defun get-description (id)
+  (when id
+    (conn (get-dao 'description id))))
+
+(defun update-description (description &key (description-text ""))
+  (when description
+    (setf (text description) description-text)
+    (conn (update-dao description))))
+
+(defun delete-description (description)
+  (conn (delete-dao description)))
+
+(defun create-sentence-new (paper &key (description-text "") (text ""))
   (conn
    (let* ((paper-id (id paper))
-	  (idx (caar (query (:select (:count 'id) :from 'paragraphs :where (:= 'paper-id paper-id))))))
-     (make-dao 'paragraph
-	       :paper-id paper-id
-	       :idx idx
-	       :title title
-	       :description description))))
-;; (id (create-paragraph (get-paper :title *paper*) :title "Meow" :description "Woof"))
-;; (id (create-paragraph (get-paper :title *paper*) :title "Meow Meow" :description "Woof Woof"))
-;; (id (create-paragraph (get-paper :title *paper2*) :title "Tweet" :description "Growl"))
-
-(defun get-paragraph (paper &key id idx)
-  (cond (id (conn (get-dao 'paragraph id)))
-	((and paper idx) (first (conn (query (:select '* :from 'paragraphs :where (:and (:= 'idx '$1)
-											(:= 'paper-id '$2)))
-					     idx
-					     (id paper)
-					     (:dao paragraph)))))
-	(paper (first (conn (query (:select '* :from 'paragraphs :where (:and (:= 'idx 0)
-									      (:= 'paper-id '$1)))
-				   (id paper)
-				   (:dao paragraph)))))))
-;; (get-paragraph nil :id (id (get-paragraph (get-paper :title *paper*))))
-;; (get-paragraph (get-paper :title *paper*) :idx 0)
-
-(defun update-paragraph (paragraph &key idx title description (archived nil archivedp))
-  (when paragraph
-    (when idx
-      (let ((sentences (get-sentences paragraph)))
-	)
-      (setf (idx paragraph) idx))
-    (when title
-      (setf (title paragraph) title))
-    (when description
-      (setf (description paragraph) description))
-    (when archivedp
-      (setf (archived paragraph) archived))
-    (when (or idx title description archivedp)
-      (conn (update-dao paragraph)))))
-;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)
-;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 1) :title "This is another title.")
-;; (update-paragraph (get-paragraph (get-paper :title *paper*) :idx 1) :description "Description.")
-
-(defun delete-paragraph (paragraph)
-  (when paragraph
-    (conn (delete-dao paragraph))))
-;; (delete-paragraph (get-paragraph (get-paper :title *paper*) :idx 5))
-
-(defun create-caption (caption-text)
-  (when caption-text
-    (conn (make-dao 'caption
-		    :text caption-text))))
-
-(defun get-caption (id)
-  (when id
-    (conn (get-dao 'caption id))))
-
-(defun update-caption (caption &key (caption-text ""))
-  (when caption
-    (setf (text caption) caption-text)
-    (conn (update-dao caption))))
-
-(defun delete-caption (caption)
-  (conn (delete-dao caption)))
-
-(defun create-sentence-new (paragraph &key (caption-text "") (text ""))
-  (conn
-   (let* ((paragraph-id (id paragraph))
-	  (idx (caar (query (:select (:count 'id) :from 'sentences :where (:= 'paragraph-id paragraph-id)))))
-	  (caption (create-caption caption-text)))
+	  (idx (caar (query (:select (:count 'id) :from 'sentences :where (:= 'paper-id paper-id)))))
+	  (description (create-description description-text)))
      (make-dao 'sentence
-	       :paragraph-id paragraph-id
-	       :caption-id (id caption)
+	       :paper-id paper-id
+	       :description-id (id description)
 	       :idx idx
 	       :text text))))
-;; (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "First sentence." :text "Lorem ipsum.")
-;; (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "Second sentence." :text "Meow meow meow.")
-;; (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 1) :caption-text "First sentence." :text "Woof woof.")
+;; (create-sentence-new (get-paper :title *paper*) :description-text "First sentence." :text "Lorem ipsum.")
 
-(defun create-sentence-next (previous-sentence &key caption-text (text ""))
+(defun create-sentence-next (previous-sentence &key description-text (text ""))
   (conn
-   (let* ((caption (create-caption (if caption-text
-				       caption-text
-				       (text (get-caption (caption-id previous-sentence))))))
+   (let* ((description (create-description (if description-text
+				       description-text
+				       (text (get-description (description-id previous-sentence))))))
 	  (next (make-dao 'sentence
-			  :paragraph-id (paragraph-id previous-sentence)
-			  :caption-id (if caption
-					  (id caption)
-					  (caption-id previous-sentence))
+			  :paper-id (paper-id previous-sentence)
+			  :description-id (if description
+					  (id description)
+					  (description-id previous-sentence))
 			  :previous (id previous-sentence)
 			  :idx (idx previous-sentence)
 			  :text text)))
      (setf (next previous-sentence) (id next))
      (update-dao previous-sentence)
      next)))
-;; (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some changes." :text "Something more meaningful.")
-;; (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes." :text "Something even more meaningful.")
+;; (create-sentence-next (get-sentence (get-paper :title *paper*)) :description-text "Some changes." :text "Something more meaningful.")
+;; (create-sentence-next (get-sentence (get-paper :title *paper*)) :description-text "Some more changes." :text "Something even more meaningful.")
 
-(defun get-sentence (paragraph &key id idx)
+(defun get-sentence (paper &key id idx)
   (cond (id (conn (get-dao 'sentence id)))
-	((and paragraph idx)
+	((and paper idx)
 	 (first (conn (query (:select '* :from 'sentences :where (:and (:= 'idx '$1)
-								       (:= 'paragraph-id '$2)
+								       (:= 'paper-id '$2)
 								       (:= 'next "")))
 			     idx
-			     (id paragraph)
+			     (id paper)
 			     (:dao sentence)))))
-	(paragraph (first (conn (query (:select '* :from 'sentences :where (:and (:= 'idx 0)
-										 (:= 'paragraph-id '$1)
+	(paper (first (conn (query (:select '* :from 'sentences :where (:and (:= 'idx 0)
+										 (:= 'paper-id '$1)
 										 (:= 'next "")))
-				       (id paragraph)
+				       (id paper)
 				       (:dao sentence)))))))
-;; (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))
+;; (get-sentence (get-paper (get-paper :title *paper*) :idx 0))
 
-(defun get-sentences (paragraph &key idx)
-  (cond ((and paragraph idx)
-	 (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paragraph-id '$1)
+(defun get-sentences (paper &key idx)
+  (cond ((and paper idx)
+	 (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paper-id '$1)
 									   (:= 'idx idx)))
 				 (:asc 'timestamp))
-		      (id paragraph)
+		      (id paper)
 		      (:dao sentence))))
-	(paragraph (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paragraph-id '$1)
+	(paper (conn (query (:order-by (:select '* :from 'sentences :where (:and (:= 'paper-id '$1)
 										     (:= 'next "")))
 					   (:asc 'idx))
-				(id paragraph)
+				(id paper)
 				(:dao sentence))))))
-;; (loop for sentence in (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0)) do (print (text sentence)))
-;; (loop for sentence in (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0) do (print (text sentence)))
+;; (loop for sentence in (get-sentences (get-paper :title *paper*)) do (print (text sentence)))
+;; (loop for sentence in (get-sentences (get-paper :title *paper*) :idx 0) do (print (text sentence)))
 
 (defun -get-sentence-previous-next (sentence operation)
   (let ((sentence-id (cond ((eq operation :next) (next sentence))
@@ -261,25 +195,25 @@
 
 (defun get-sentence-previous (sentence)
   (-get-sentence-previous-next sentence :previous))
-;; (text (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))
-;; (text (get-sentence-previous (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0))))
-;; (text (get-sentence-previous (get-sentence-previous (nth 2 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))))
+;; (text (nth 2 (get-sentences (get-paper :title *paper*) :idx 0)))
+;; (text (get-sentence-previous (nth 2 (get-sentences (get-paper :title *paper*) :idx 0))))
+;; (text (get-sentence-previous (get-sentence-previous (nth 2 (get-sentences (get-paper :title *paper*) :idx 0)))))
 
 (defun get-sentence-next (sentence)
   (-get-sentence-previous-next sentence :next))
-;; (text (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))
-;; (text (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0))))
-;; (text (get-sentence-next (get-sentence-next (nth 0 (get-sentences (get-paragraph (get-paper :title *paper*) :idx 0) :idx 0)))))
+;; (text (nth 0 (get-sentences (get-paper :title *paper*) :idx 0)))
+;; (text (get-sentence-next (nth 0 (get-sentences (get-paper :title *paper*) :idx 0))))
+;; (text (get-sentence-next (get-sentence-next (nth 0 (get-sentences (get-paper :title *paper*) :idx 0)))))
 
-(defun update-sentence (sentence &key caption-text idx (archived nil archivedp))
+(defun update-sentence (sentence &key description-text idx (archived nil archivedp))
   (when sentence
-    (when caption-text
-      (let ((caption (get-caption (caption-id sentence))))
-	(setf (text caption) caption-text)
-	(conn (update-dao caption))))
+    (when description-text
+      (let ((description (get-description (description-id sentence))))
+	(setf (text description) description-text)
+	(conn (update-dao description))))
     (when idx
-      (let* ((paragraph (get-paragraph nil :id (paragraph-id sentence)))
-	     (sentences (get-sentences paragraph :idx (idx sentence))))
+      (let* ((paper (get-paper :id (paper-id sentence)))
+	     (sentences (get-sentences paper :idx (idx sentence))))
 	(conn
 	 (loop for sentence in sentences
 	       do (progn
@@ -288,37 +222,37 @@
     (when archivedp
       (setf (archived sentence) archived)
       (conn (update-dao sentence)))))
-;; (text (get-caption (caption-id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))))
-;; (text (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))
-;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes that change everything.")
-;; (update-sentence (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 10) :idx 0)
+;; (text (get-description (description-id (get-sentence (get-paper (get-paper :title *paper*) :idx 0)))))
+;; (text (get-sentence (get-paper (get-paper :title *paper*) :idx 0)))
+;; (update-sentence (get-sentence (get-paper (get-paper :title *paper*) :idx 0)) :description-text "Some more changes that change everything.")
+;; (update-sentence (get-sentence (get-paper (get-paper :title *paper*) :idx 0) :idx 10) :idx 0)
 
-(defun create-comment (target-id author text)
+(defun create-comment (sentence-id author text)
   (conn (make-dao 'comment
-		  :target-id target-id
+		  :sentence-id sentence-id
 		  :author author
 		  :text text)))
-;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Amaury" "Nice first sentence.")
-;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Mario" "Definitely!")
-;; (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 1)) "Amaury" "Nice second sentence.")
+;; (create-comment (id (get-sentence (get-paper :title *paper*))) "Amaury" "Nice first sentence.")
+;; (create-comment (id (get-sentence (get-paper :title *paper*))) "Mario" "Definitely!")
+;; (create-comment (id (get-sentence (get-paper :title *paper*) :idx 1)) "Amaury" "Nice second sentence.")
 
 (defun get-comment (id)
   (when id
     (conn (get-dao 'comment id))))
 
-(defun get-comments (target-id)
-  (when target-id
-    (conn (query (:order-by (:select '* :from 'comments :where (:= 'target-id '$1))
+(defun get-comments (sentence-id)
+  (when sentence-id
+    (conn (query (:order-by (:select '* :from 'comments :where (:= 'sentence-id '$1))
 			    (:asc 'timestamp))
-		 target-id
+		 sentence-id
 		 (:dao comment)))))
-;; (loop for comment in (get-comments (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)))) do (print (text comment)))
+;; (loop for comment in (get-comments (id (get-sentence (get-paper :title *paper*)))) do (print (text comment)))
 
 (defun update-comment (comment &key (archived nil archivedp))
   (when (and comment archivedp)
     (setf (archived comment) archived)
     (conn (update-dao comment))))
-;; (update-comment (first (get-comments (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))))) :archived t)
+;; (update-comment (first (get-comments (id (get-sentence (get-paper :title *paper*))))) :archived t)
 
 (hscom.utils:comment
  (progn
@@ -329,22 +263,18 @@
    (create-paper *paper*)
    (create-paper *paper2*)
 
-   (id (create-paragraph (get-paper :title *paper*) :title "Meow" :description "Woof"))
-   (id (create-paragraph (get-paper :title *paper*) :title "Meow Meow" :description "Woof Woof"))
-   (id (create-paragraph (get-paper :title *paper2*) :title "Tweet" :description "Growl"))
-
-   (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "First sentence." :text "Lorem ipsum.")
-   (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 0) :caption-text "Second sentence." :text "Meow meow meow.")
-   (create-sentence-new (get-paragraph (get-paper :title *paper*) :idx 1) :caption-text "First sentence." :text "Woof woof.")
+   (create-sentence-new (get-paper :title *paper*) :description-text "First sentence." :text "Lorem ipsum.")
+   (create-sentence-new (get-paper :title *paper*) :description-text "Second sentence." :text "Meow meow meow.")
+   (create-sentence-new (get-paper :title *paper*) :description-text "Third sentence." :text "Woof woof.")
 
    ;; (sleep 1)
-   (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some changes." :text "Something more meaningful.")
+   (create-sentence-next (get-sentence (get-paper :title *paper*)) :description-text "Some changes." :text "Something more meaningful.")
    ;; (sleep 1)
-   (create-sentence-next (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0)) :caption-text "Some more changes." :text "Something even more meaningful.")
+   (create-sentence-next (get-sentence (get-paper :title *paper*)) :description-text "Some more changes." :text "Something even more meaningful.")
 
-   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Amaury" "Nice first sentence.")
-   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0))) "Mario" "Definitely!")
-   (create-comment (id (get-sentence (get-paragraph (get-paper :title *paper*) :idx 0) :idx 1)) "Amaury" "Nice second sentence.")
+   (create-comment (id (get-sentence (get-paper :title *paper*))) "Amaury" "Nice first sentence.")
+   (create-comment (id (get-sentence (get-paper :title *paper*))) "Mario" "Definitely!")
+   (create-comment (id (get-sentence (get-paper :title *paper*) :idx 1)) "Amaury" "Nice second sentence.")
    )
  )
 
