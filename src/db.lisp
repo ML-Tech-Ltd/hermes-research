@@ -1,7 +1,7 @@
 (in-package :cl-user)
 (defpackage hermes-research.db
   (:use #:cl #:postmodern)
-  (:import-from #:hsinp.db
+  (:import-from #:hscom.db
 		#:conn)
   (:export #:init-database
 	   #:drop-database)
